@@ -1,0 +1,10 @@
+celery~=5.3.6
+dynaconf~=3.2.5
+fastapi~=0.110.1
+qdrant-client~=1.8.2
+pillow~=10.3.0
+pydantic~=2.7.0
+redis~=5.0.3
+torch~=2.2.2
+transformers~=4.39.3
+uvicorn~=0.29.0
