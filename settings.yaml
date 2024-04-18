@@ -1,0 +1,8 @@
+database:
+  url: "localhost:6333"
+  collection-name: "default"
+embedding:
+  model-path: "openai/clip-vit-base-patch32"
+  device: "cpu"
+worker:
+  broker-url: "redis://localhost"
