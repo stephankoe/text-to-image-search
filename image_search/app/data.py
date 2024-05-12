@@ -7,7 +7,7 @@ from pydantic import BaseModel
 class Trackable(BaseModel):
     """Adds a tracking ID to track requests through multiple microservices"""
 
-    tracking_id: Optional[int] = None
+    tracking_id: Optional[str] = None
 
 
 class SearchRequest(Trackable):
@@ -32,12 +32,6 @@ class IndexRequest(Trackable):
 
 class IndexingJob(Trackable):
     """Indexing job information"""
-
-    job_id: str
-
-
-class IndexingJobStatus(Trackable):
-    """Indexing job status"""
 
     job_id: str
     status: str

@@ -2,12 +2,13 @@
 import base64
 from typing import Optional
 
+from celery.result import AsyncResult
 from fastapi import FastAPI
 
-from image_search.app.data import (IndexingJob, IndexingJobStatus, IndexRequest,
-                                   SearchRequest, SearchResult, Trackable)
+from image_search.app.data import (IndexingJob, IndexRequest, SearchRequest,
+                                   SearchResult, Trackable)
 from image_search.app.initialize import database
-from image_search.app.tasks import app as celery
+from image_search.app.tasks import app as celery_app, index as index_task
 
 app = FastAPI()
 
@@ -17,15 +18,23 @@ def index(request: IndexRequest,
           ) -> IndexingJob:
     image_bytes = [base64.b64decode(image)
                    for image in request.images]
-    celery.index(image_bytes)
-    return IndexingJob(job_id='',  # TODO: job IDs
+    task_result = index_task.delay(image_bytes)
+    return IndexingJob(job_id=task_result.id,
+                       status=task_result.status,
                        tracking_id=request.tracking_id)
 
 
-@app.post("/index/{job_id}/status")
-def query_indexing_job_status(request: Optional[Trackable] = None,
-                              ) -> IndexingJobStatus:
-    raise NotImplemented  # TODO
+@app.get("/index/{job_id}")
+def query_indexing_job_status(job_id: str,
+                              request: Optional[Trackable] = None,
+                              ) -> IndexingJob:
+    task_result = AsyncResult(job_id, app=celery_app)
+    kwargs = {}
+    if request:
+        kwargs["tracking_id"] = request.tracking_id
+    return IndexingJob(job_id=task_result.id,
+                       status=task_result.status,
+                       **kwargs)
 
 
 @app.post("/search")

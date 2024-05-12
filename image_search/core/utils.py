@@ -1,6 +1,7 @@
 """General-purpose utility functions"""
 from collections import defaultdict
-from typing import Callable, Dict, Iterable, Sequence, Type, TypeVar
+import itertools
+from typing import Callable, Dict, Iterable, Sequence, Tuple, Type, TypeVar
 
 import torch
 
@@ -38,12 +39,13 @@ def group_by_type(elements: Iterable[_T],
             if isinstance(obj, type_category):
                 return type_category
 
-        return object
+        return None
 
     groups = defaultdict(list)
     for element in elements:
         element_type = get_type(key(element))
-        groups[element_type].append(element)
+        if element_type is not None:
+            groups[element_type].append(element)
     return dict(groups)
 
 
@@ -60,3 +62,42 @@ def cosine_similarity(vectors: torch.Tensor,
     l2 = torch.mul(vectors, vectors).sum(dim=-1)
     denominator = torch.max(torch.sqrt(torch.outer(l2, l2)), torch.tensor(eps))
     return torch.div(numerator, denominator)
+
+
+def create_batches(elements: Iterable[_T],
+                   batch_size: int,
+                   ) -> Iterable[Sequence[_T]]:
+    """
+    Create batches from iterable
+    :param elements: elements
+    :param batch_size: batch size
+    :return: batches
+    """
+    try:
+        return itertools.batched(elements, batch_size)
+    except AttributeError:  # fallback for Python below 3.12
+        elem_it = iter(elements)
+        while batch := tuple(itertools.islice(elem_it, batch_size)):
+            yield batch
+
+
+def scale_down(current_size: Tuple[int, int],
+               target_size: Tuple[int, int],
+               ) -> Tuple[int, int]:
+    """
+    Compute downscaled sizes of an image. If image already smaller than target,
+    then the size is unmodified.
+    :param current_size: current image size
+    :param target_size: target size
+    :return: downscaled sizes of an image
+    """
+    if 0 in target_size:
+        return 0, 0
+
+    current_width, current_height = current_size
+    target_width, target_height = target_size
+    width_factor = current_width / target_width
+    height_factor = current_height / target_height
+    scale_factor = max(width_factor, height_factor, 1.)
+    return (int(current_width  / scale_factor),
+            int(current_height / scale_factor))

@@ -1,12 +1,14 @@
-from typing import Iterable, Protocol, Sequence, TypeVar
+import base64
+from typing import Iterable, Protocol, Sequence, Tuple, TypeVar
 import uuid
 
-from PIL import Image
+from PIL.Image import Image
 from qdrant_client import QdrantClient
 from qdrant_client.models import (Distance, PointStruct, ScoredPoint,
                                   SearchRequest, VectorParams)
 
 from image_search.core.embedding import Embedder
+from image_search.core.utils import scale_down
 
 _T = TypeVar("_T")
 
@@ -37,20 +39,23 @@ class Database(Protocol):
 
 class QdrantVectorDatabase:
 
-    _OBJ_TYPE = str | Image.Image
+    _OBJ_TYPE = str | Image
 
     def __init__(self,
                  embed: Embedder,
                  client: QdrantClient,
                  collection: str = None,
+                 thumbnail_size: Tuple[int, int] = (128, 128),
                  ):
         """
         :param embed: object embedding function
         :param client: Qdrant client object
         :param collection: already existing collection to use
+        :param thumbnail_size: size of thumbnail that is stored in DB
         """
         self._embed = embed
         self._client = client
+        self._thumbnail_size = thumbnail_size
         if not collection or not self._client.collection_exists(collection):
             self._collection = self._initialize_collection(collection)
         else:
@@ -97,7 +102,7 @@ class QdrantVectorDatabase:
         :param n_similar: number of similar objects to return
         :return: similar objects from database
         """
-        if isinstance(objs, str | Image.Image):
+        if isinstance(objs, str | Image):
             objs = [objs]
 
         embeddings = self._embed(objs)
@@ -113,6 +118,19 @@ class QdrantVectorDatabase:
                                          requests=requests,
                                          )
         return self._extract_payloads(hits)
+
+    def _image_to_payload(self,
+                          image: Image,
+                          ) -> dict[str, bytes]:
+        """
+        Transform image to payload
+        :param image: image
+        :return: payload dict for database
+        """
+        image.thumbnail(scale_down(image.size, self._thumbnail_size))
+        return {
+            "pixels": base64.b64encode(image.tobytes()),
+        }
 
     def _initialize_collection(self,
                                collection_name: str = None,
@@ -144,18 +162,6 @@ class QdrantVectorDatabase:
             ]
             for candidates in results
         ]
-
-    @staticmethod
-    def _image_to_payload(image: Image.Image,
-                          ) -> dict[str, bytes]:
-        """
-        Transform image to payload
-        :param image: image
-        :return: payload dict for database
-        """
-        return {
-            "pixels": image.tobytes(),
-        }
 
     @staticmethod
     def _text_to_payload(text: str,

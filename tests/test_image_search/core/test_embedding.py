@@ -1,15 +1,18 @@
 """Test embedding component"""
+import io
 import os
 import unittest
 
 from PIL import Image
 import torch
 
+import image_search
 from image_search.core.embedding import CLIPEmbedder
 from image_search.core.utils import cosine_similarity
 
 _DEFAULT_MODEL_PATH = "openai/clip-vit-base-patch32"
-_TEST_ROOT = os.path.realpath(os.path.dirname(os.path.dirname(__file__)))
+_ROOT = os.path.dirname(os.path.dirname(image_search.__file__))
+_TEST_ROOT = os.path.join(_ROOT, "tests")
 _FIXTURES_PATH = os.path.join(_TEST_ROOT, "fixtures")
 
 
@@ -40,3 +43,12 @@ class TestCLIPEmbedder(unittest.TestCase):
         embeddings = torch.stack(tuple(embeddings))
         similarities = cosine_similarity(embeddings)
         self.assertLess(similarities[0, 2].item(), similarities[0, 1].item())
+
+    def test_call__images_from_memory(self):
+        dog_image = os.path.join(_FIXTURES_PATH, "dog.jpg")
+        with open(dog_image, 'rb') as fh:
+            image_bytes = fh.read()
+
+        image = Image.open(io.BytesIO(image_bytes))
+        embeddings = self._embed([image])
+        self.assertIsNotNone(embeddings)
