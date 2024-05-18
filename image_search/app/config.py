@@ -3,7 +3,7 @@ from dynaconf import Dynaconf, Validator
 
 settings = Dynaconf(
     envvar_prefix="T2I_SEARCH",
-    settings_files=['settings.yaml', '.secrets.yaml'],
+    settings_files=['settings.toml', '.secrets.yaml'],
 )
 
 # `envvar_prefix` = export envvars with `export DYNACONF_FOO=bar`.

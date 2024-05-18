@@ -2,42 +2,80 @@ version: '3.2'
 
 services:
   api:
-    image: python:3.11-slim
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      tags:
+        - stephankoe/image-search-app:latest
     container_name: image-search-api
     ports:
       - "8080:8080"
     links:
       - task_queue
-      - qdrant
+      - vector_db
+    depends_on:
+      cache:
+        condition: service_healthy
+      vector_db:
+        condition: service_started
+      task_queue:
+        condition: service_healthy
     networks:
       - text2image_search
+    environment:
+      - T2I_SEARCH_WORKER__BROKER_URL="$T2I_SEARCH_WORKER__BROKER_URL"
+      - T2I_SEARCH_WORKER__BACKEND_URL="$T2I_SEARCH_WORKER__BACKEND_URL"
+      - T2I_SEARCH_DATABASE__URL="$T2I_SEARCH_DATABASE__URL"
+
   task_queue:
-    image: python:3.11-slim
+    image: stephankoe/image-search-app:latest
     container_name: task-queue
+    command:
+      - task-queue
     links:
-      - qdrant
-      - redis
+      - vector_db
+      - cache
+    depends_on:
+      cache:
+        condition: service_healthy
+      vector_db:
+        condition: service_started
     networks:
       - text2image_search
-  qdrant:
+    environment:
+      - T2I_SEARCH_WORKER__BROKER_URL="$T2I_SEARCH_WORKER__BROKER_URL"
+      - T2I_SEARCH_WORKER__BACKEND_URL="$T2I_SEARCH_WORKER__BACKEND_URL"
+      - T2I_SEARCH_DATABASE__URL="$T2I_SEARCH_DATABASE__URL"
+    healthcheck:
+      test: [ "CMD", "bash", "deploy/entrypoint.sh", "task-queue", "status" ]
+
+  vector_db:
     image: qdrant/qdrant:v1.8.4
     container_name: vector-db
     configs:
       - source: qdrant_config
         target: /qdrant/config/production.yaml
+    environment:
+      - T2I_SEARCH_DATABASE__URL="$T2I_SEARCH_DATABASE__URL"
     ports:
       - "6333:6333"
     volumes:
       - qdrant_storage:/qdrant_data
     networks:
       - text2image_search
-  redis:
+    healthcheck:
+      test: [ "CMD" , "curl", "-f", "http://localhost:6333/healthz" ]
+
+  cache:
     image: redis:7.2.4
     container_name: cache
     ports:
       - "6379:6379"
     networks:
       - text2image_search
+    healthcheck:
+      test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
+
 configs:
   qdrant_config:
     content: |

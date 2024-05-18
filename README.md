@@ -6,7 +6,8 @@ Search relevant images based on a text input
 
 ### Docker
 
-- docker compose up
+- Build the image: docker compose build
+- Start the service(s): docker compose up
 - how to mount data
 
 ### Python
@@ -59,10 +60,16 @@ Possible queries:
    qdrant_client.http.exceptions.ResponseHandlingException: illegal request line
    ```
    Solved by using port 6333 instead of 6334
+2. When calling the model within a Celery worker, the process was hanging
+   indefinitely when calling the model. 
+   Solution: initialize the model inside the task function.
 
 ## Improvements
 
 - what could be improved in the future
+- usability enhancements
+- security
+- backend for storing images
 
 ## TODO
 
