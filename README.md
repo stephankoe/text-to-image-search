@@ -1,87 +1,37 @@
 # Text to Image Search
 
-Search relevant images based on a text input
+This service allows to search relevant images with a text prompt.  To this end, it uses a pretrained image-and-text encoder model, such as [CLIP](https://huggingface.co/openai/clip-vit-large-patch14) to encode images and text queries into an n-dimensional vector space.  The service then returns the images whose embeddings are closest to the text query's embedding, as measured with the cosine similarity.
+
 
 ## Usage
 
 ### Docker
 
-- Build the image: docker compose build
-- Start the service(s): docker compose up
-- how to mount data
+- Build the image: 
+  ```bash
+  docker compose build
+  ```
+- Start the service(s): 
+  ```bash
+  docker compose up
+  ```
 
 ### Python
 
-- install requirements
-- download/prepare data
-- start database
-- start server
-
-
-## Dataset analysis
-
-### Ad Image Dataset
-
-Dataset description:
-
-  - Contains images without description
-  - Advertisement domain
-
-Common characteristics:
-
-  - Many/most images contain chunks of text
-  - Brand names are important
-  - Brand symbols
-
-Possible queries:
-
-  - Queries for objects (car, computer, ...)
-  - Queries for brands
-  - Queries for products
-  - Queries for product categories
-
-## Architecture
-
-- architectural overview
-  - api
-  - encoder
-  - retriever
-  - indexer
-- techniques involved
-  - server: probably gunicorn, torch is blocking
-  - huggingface img classification model
-
-## Challenges
-
-- challenges encountered during implementation
-
-1. Create collections yields
-   ```
-   qdrant_client.http.exceptions.ResponseHandlingException: illegal request line
-   ```
-   Solved by using port 6333 instead of 6334
-2. When calling the model within a Celery worker, the process was hanging
-   indefinitely when calling the model. 
-   Solution: initialize the model inside the task function.
-
-## Improvements
-
-- what could be improved in the future
-- usability enhancements
-- security
-- backend for storing images
-
-## TODO
-
-- [ ] Indexing task queue
-- [ ] Model server (torchserve)
-- [ ] Unblocking code
-- [ ] Proper configuration
-- [ ] Proper logging
-- [ ] Architecture description (try out the C4 model)
-- [ ] Finish this document
-- [ ] Experimental evaluation on 2-3 datasets and find badcases
-- [ ] Try out 3-4 different models
-- [ ] Remove ports from Dockerfile
-- [ ] Test cases (end-to-end with HTTP queries, unit tests)
-- [ ] Docker
+- Install project requirements using
+  ```bash
+  pip install -r requirements.txt
+  ```
+- Prepare image data
+- Start vector database, e.g., with Docker:
+  ```bash
+  docker run -p 6333:6333 --mount type=bind,source=$HOME/.qdrant_data,target=/qdrant_data --name vector-db qdrant/qdrant:v1.8.4
+  ```
+- Start encoding task queue
+  ```bash
+  bash deploy/entrypoint.sh task-queue
+  ```
+- Start HTTP server
+  ```bash
+  bash deploy/entrypoint.sh server
+  ```
